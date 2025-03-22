@@ -1,0 +1,7 @@
+
+# ignoriamo il file bytecode che viene creato quando applichiamo il passo al file .ll mediante opt
+# sarà l'utente a creareselo in locale
+Prova.Optimized.bc
+
+# idem per il file Prova.Optimized.ll ricavato dal bytecode; sarà l'utente che prodotto il bytecode, genererà il file llvm da leggere
+Prova.Optimized.ll
