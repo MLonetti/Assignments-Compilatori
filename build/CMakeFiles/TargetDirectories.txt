@@ -1,0 +1,9 @@
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/intrinsics_gen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/omp_gen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/acc_gen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/ARMTargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/AArch64TargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/AlgIde.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/edit_cache.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/build/CMakeFiles/rebuild_cache.dir
