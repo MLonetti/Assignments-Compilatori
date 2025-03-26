@@ -5,3 +5,5 @@ Prova.Optimized.bc
 
 # idem per il file Prova.Optimized.ll ricavato dal bytecode; sarà l'utente che prodotto il bytecode, genererà il file llvm da leggere
 Prova.Optimized.ll
+
+./build/*
