@@ -1,0 +1,9 @@
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/intrinsics_gen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/omp_gen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/acc_gen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/ARMTargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/AArch64TargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/StrRed.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/edit_cache.dir
+/home/kiwi/Laboratori_Compilatori/PrimoAssignment/Strenght-Reduction/Build/CMakeFiles/rebuild_cache.dir

@@ -1,16 +1,15 @@
 
 define dso_local i32 @prova(i32 noundef %0, i32 noundef %1) #0 {
   
-  %3 = add nsw i32 %0, 0
+  ;caso shift normale:
+  %3 = mul nsw i32 %0, 16 ; mi aspetto venga creata una shift al posto di questa mul, e chi userà questa mul utilizzerà la shift!
+  %4 = add nsw i32 %3, 10 ; mi aspetto questa istruzione utilizzi la shift creata precedentemente al posto della mul
 
-  %4 = mul nsw i32 %1, 1
+  ; caso con shift del tipo x * 15
+  %5 = mul i32 %1, 15 ; mi aspetto venga creata una shift left di 4 al posto di questa mul e subito dopo mi aspetto una sottrazione del tipo -> %.. = shift - x
 
-  %5 = add i32 %3, 4
+  ; caso con shift del tipo x * 17
+  %6 = mul i32 %0 , 17 ; mi aspetto venga creata una shift left di 4 al posto di questa mul e subito dopo mi aspetto una somma del tipo -> %.. = shift + x 
 
-  %6 = add i32 %4, 6
-
-  %7 = mul nsw i32 %5, %6
-
-  ret i32 %7
+  ret i32 %6
 }
-

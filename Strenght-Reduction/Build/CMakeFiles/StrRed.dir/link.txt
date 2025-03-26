@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC  -fno-rtti -shared -Wl,-soname,libStrRed.so -o libStrRed.so CMakeFiles/StrRed.dir/Pass2.cpp.o 

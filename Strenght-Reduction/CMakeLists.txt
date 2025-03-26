@@ -1,5 +1,10 @@
+# anche qui, il CMAKEFILE vale per questa directory legata al passo
+
+# alla fine di tutto però avremo una sola directory, con un solo CMAKEFILE, dove però dovremmo fare riferimento alle diverse classi presenti
+# nel pass.cpp che includerà tutti e 3 i passi, e quindi tutte e 3 le classi.
+
 cmake_minimum_required(VERSION 3.20)
-project(Algebraic_Identity)
+project(StrenghtReduction)
 
 #===============================================================================
 # 1. LOAD LLVM CONFIGURATION
@@ -33,9 +38,10 @@ endif()
 #===============================================================================
 # 3. ADD THE TARGET
 #===============================================================================
-add_library(AlgIde SHARED aPass1.cpp)
+add_library(StrRed SHARED Pass2.cpp)
+# qui nel passo finale, che avrà tutte le ottimizazioni rick dice di mettere un nome a cazzo, tipo Assignment1 Shared nomePassofinale.cpp
 
 # Allow undefined symbols in shared objects on Darwin (this is the default
 # behaviour on Linux)
-target_link_libraries(AlgIde
+target_link_libraries(StrRed
   "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>")
