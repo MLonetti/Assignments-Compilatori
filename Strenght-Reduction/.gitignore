@@ -1,0 +1,4 @@
+
+# nascondiamo tutto ciò che andà dentro build
+
+./Build/*
