@@ -86,7 +86,7 @@ bool runOnBasicBlock(BasicBlock &BB){
 
               //sfruttiamo il fatto che sappiamo di avere Operand 0 ed Operand 1 e puntiamo ad uno dei due così.
 
-              outs() << "\tTutte le istruzioni che usavano: " << Inst << " utilizzeranno ora: " << *operando_non_neutrale << "\n\n";
+            outs() << "\tTutte le istruzioni che usavano: " << Inst << " utilizzeranno ora: " << *operando_non_neutrale << "\n\n";
             Inst.replaceAllUsesWith(operando_non_neutrale); // Chi prima usava l'istruzione ora usa l'operando 
                                                             // non neutrale.
                                                    

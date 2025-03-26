@@ -2,3 +2,7 @@
 # nascondiamo tutto ciò che andà dentro build
 
 ./Build/*
+
+
+# nascondiamo tutto le ottimizzazioni .bc e .ll
+./Optimized.*
