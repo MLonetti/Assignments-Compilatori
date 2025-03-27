@@ -1,15 +1,23 @@
 
-define dso_local i32 @prova(i32 noundef %0, i32 noundef %1) #0 {
-  
-  ;caso shift normale:
-  %3 = mul nsw i32 %0, 16 ; mi aspetto venga creata una shift al posto di questa mul, e chi userà questa mul utilizzerà la shift!
-  %4 = add nsw i32 %3, 10 ; mi aspetto questa istruzione utilizzi la shift creata precedentemente al posto della mul
+; Main function with simple strength reduction examples
+define i32 @main() {
+entry:
+    ; Value to operate on
+    %val = add i32 10, 5    ; Initialize %val = 15
 
-  ; caso con shift del tipo x * 15
-  %5 = mul i32 %1, 15 ; mi aspetto venga creata una shift left di 4 al posto di questa mul e subito dopo mi aspetto una sottrazione del tipo -> %.. = shift - x
-
-  ; caso con shift del tipo x * 17
-  %6 = mul i32 %0 , 17 ; mi aspetto venga creata una shift left di 4 al posto di questa mul e subito dopo mi aspetto una somma del tipo -> %.. = shift + x 
-
-  ret i32 %6
+    %add = add i32 %val, 3    ; Addition
+    %sub = sub i32 %add, 3    ; Subtraction
+    
+    
+    ; Multiplication by power of 2 (can be replaced with shift left)
+    %mul = mul i32 %sub, 15   ; Can be replaced with %val << 3
+    
+    ; Division by power of 2 (can be replaced with shift right)
+    %div = sdiv i32 %val, 4  ; Can be replaced with %val >> 2
+    %div2 = udiv i32 %val, 4 ; Can be replaced with %val >> 2
+    
+    ; Combine results
+    %result = add i32 %mul, %div
+    
+    ret i32 %result
 }

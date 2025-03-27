@@ -1,0 +1,9 @@
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/intrinsics_gen.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/omp_gen.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/acc_gen.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/ARMTargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/AArch64TargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/MultInstrOpt.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/edit_cache.dir
+/home/kiwi/Laboratori_Compilatori/Assigments-Compilatori/PrimoAssignement/Multi-Instruction-Optimization/build/CMakeFiles/rebuild_cache.dir

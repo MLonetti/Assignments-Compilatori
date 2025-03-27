@@ -3,11 +3,18 @@
 //    aPass1.cpp
 //
 // DESCRIPTION:
-//    Passo in cui andremo ad applicare la strenght reduction
-//    questa spiegazione andrà aggiunta al file sorgente che conterrà tutti i passi, come spiegato enll'aggiornamento del ReadMe.md
+//    Multi-instruction optimizaion -> a = b + 1
+//  -                                  c = a - 1 -> a = b 
 
-//    fare quindi una spiegazione del opasso di ottimizzazione, molto breve, in quanto la spiegaazione dettagliata andrà nel readme finale
-//     che conterrà tutte le spiegazioni dei passi e del progetto in generale.
+// diventerà a = b + 1
+//           c = b
+
+// controllo le istruzioni iterativamente. 
+
+// se becco una istruzione che è una add con un operando costante, controllo l'istruzione successiva.
+
+// se è una sub con operando costante uguale a quello che ho trovato prima, e l'altro operando, corrisponde alla istruzione rpecedente
+// allora posso eliminare l'istruzione e rimpiazzare gli usi direttamente con l'operando della prima addizione
 
 //
 //
@@ -20,6 +27,23 @@
 
 using namespace llvm;
 
+bool is_add(Instruction &I){
+  if(BinaryOperator *BO = dyn_cast<BinaryOperator>(&I)){
+    if(BO->getOpcode() == Instruction::Add){
+      return true;
+    }
+  }
+  return false;
+}
+
+bool is_sub(Instruction &I){
+  if(BinaryOperator *BO = dyn_cast<BinaryOperator>(&I)){
+    if(BO->getOpcode() == Instruction::Sub){
+      return true;
+    }
+  }
+  return false;
+}
 
 //-----------------------------------------------------------------------------
 // TestPass implementation
@@ -27,118 +51,50 @@ using namespace llvm;
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 
-bool is_mul(Instruction &Inst){ 
-  if (BinaryOperator *BO = dyn_cast<BinaryOperator>(&Inst)) { // si fa il cast per capire se l'istruzione è una binary operator, se lo è si controlla 
-                                                              // l'opcode dell'istruzione.
-
-                                                              // se l'opcode è Mul, allora diciamo che abbiamo trovato la moltiplicazione, 
-                                                              // indicando l'istruzione, e ritorna true
-    if (BO->getOpcode() == Instruction::Mul) {
-        outs() << "Trovata una moltiplicazione: " << *BO << "\n";
-        return true;
-    }
-  }
-  return false;
-}
 
 bool runOnBasicBlock(BasicBlock &B) {
   bool transformed = false;
   std::vector<Instruction *> ToErase; //vettore che conterrà le istruzioni da eliminare
 
   for(Instruction &I : B){
-    int i = 0; //contatore che useremo per prendere l'altro operando dell'istruzione
+    outs() << "Instruction: " << I << "\n";
+    int i = 0;
 
-    outs() << "Analizzo l'istruzione: " << I << "\n";
+    if (is_add(I)){
+      for(auto *Iter = I.op_begin(); Iter != I.op_end(); ++Iter){
+        Value *Op = *Iter;
+        if(ConstantInt *CI = dyn_cast<ConstantInt>(Op)){
+          outs() << "Trovata somma con operando costante!\n";
+          Value *otherOp = I.getOperand(1-i);
+          Instruction*nextInst = I.getNextNode();
 
-    if(is_mul(I)){ //in futuro si può direttamente implementare il cast di tipo if(MulOperator *MU = din_cast<MulOperator>(&I))
-                   //esiste direttamente questo cast che ritorna true se l'istruzione è una moltiplicazione, e false altrimenti 
+          //ora vediamo la prossima istruzione se è una sub con le caratteristiche che ci interessano
+          if(nextInst != nullptr && is_sub(*nextInst)){
+            Value *operando0 = nextInst->getOperand(0);
 
-      for(auto *Iter=I.op_begin(); Iter != I.op_end(); ++Iter){// Iteriamo gli operandi della mul fino a trovare la costante int
-        Value *Operand = *Iter;
+            Value *operando1 = nextInst->getOperand(1);
 
-        if(ConstantInt *CI = dyn_cast<ConstantInt>(Operand)){
-          APInt Val = CI->getValue();
+            if(operando0 == &I && operando1 == Op){ //Dove la Op è la costante intera
+              outs() << "Trovata sub ridondante!: " << *nextInst << "\n";
+              nextInst -> replaceAllUsesWith(otherOp); //sostituisco tutti gli usi della sub con l'add
 
-          if(Val.isPowerOf2()){
-            outs() << "Trovata MUL con costante intera potenza di 2 ";
-            
-            //facciamo la classica roba di sempre
-            int shift_val = Val.logBase2(); //valore che utilizzeremo per l'istruzione shift che andiamo a creare
+              ToErase.push_back(nextInst); //aggiungo l'istruzione da eliminare al vettore
+              transformed = true;
+              outs() << "Istruzione eliminata!\n";
 
-            Value *Other_operand = I.getOperand(1-i); //prendiamo l'altro operando della moltiplicazione che applicheremo alla shift
-
-            BinaryOperator *NewShift = BinaryOperator::Create(Instruction::Shl, Other_operand, ConstantInt::get(Other_operand->getType(), shift_val));
-            outs() << "creo nuova istruzione shift "  << *NewShift << " da rimpiazzare con la Mul precedente detectata\n";
-            
-            NewShift -> insertAfter(&I); //inseriamo l'istruzione dopo la moltiplicazione
-
-            I.replaceAllUsesWith(NewShift); //sostituiamo la moltiplicazione con la shift
-            ToErase.push_back(&I); //aggiungiamo l'istruzione da eliminare al vettore
-            transformed = true;
-
-            break; //usciamo dal ciclo, e iteriamo la prossima istruzione
-
-          }else if((Val+1).isPowerOf2()){
-            outs() << "Trovata MUL con costante intera che sommata di 1 è potenza di 2: "; 
-            //siamo nel caso in cui x * 15  -> x * 16 - x -> perchè 16-1 = 15
-
-            int shift_val = (Val+1).logBase2();
-            Value *Other_operand = I.getOperand(1-i);
-            BinaryOperator *NewShift = BinaryOperator::Create(Instruction::Shl, Other_operand, ConstantInt::get(Other_operand->getType(), shift_val));
-            NewShift -> insertAfter(&I);
-
-            I.replaceAllUsesWith(NewShift);
-            ToErase.push_back(&I);
-
-            BinaryOperator *NewSub = BinaryOperator::Create(Instruction::Sub, NewShift, Other_operand);
-            NewSub -> insertAfter(NewShift);
-
-            outs() << "creo nuova istruzione shift "  << *NewShift << " da rimpiazzare con la Mul precedente detectata\n";
-            outs() << "ed in seguito creo istruzione sub "  << *NewSub;
-
-            transformed = true;
-
-            break; //usciamo dal ciclo, e iteriamo la prossima istruzione
-
-          }else if((Val-1).isPowerOf2()){
-            outs() << "Trovata MUL con costante intera che sottratta di 1 è potenza di 2: "; 
-            //siamo nel caso in cui x * 17  -> x * 16 + x -> perchè 16+1 = 17
-
-            int shift_val = (Val-1).logBase2();
-            Value *Other_operand = I.getOperand(1-i);
-            BinaryOperator *NewShift = BinaryOperator::Create(Instruction::Shl, Other_operand, ConstantInt::get(Other_operand->getType(), shift_val));
-            NewShift -> insertAfter(&I);
-
-            I.replaceAllUsesWith(NewShift);
-            ToErase.push_back(&I);
-
-            BinaryOperator *NewAdd = BinaryOperator::Create(Instruction::Add, NewShift, Other_operand);
-            NewAdd -> insertAfter(NewShift);
-
-            outs() << "creo nuova istruzione shift "  << *NewShift << " da rimpiazzare con la Mul precedente detectata\n";
-            outs() << "ed in seguito creo istruzione add "  << *NewAdd;
-
-            transformed = true;
-
-            break; // usciamo dal ciclo, e iteriamo la prossima istruzione
-
+              outs() <<"ora le istruzioni utilizzeranno direttamente l'operando dell'add! " << *otherOp << "\n";
+            }
           }
-
         }
-      
-        i+=1;
+        i=i+1;
       }
     }
   }
 
-
-  //eliminiamo le istruzioni di cui abbiamo sostituito gli usi con le shift
-  for(Instruction *I : ToErase){
-    I->eraseFromParent();
+  for(auto *I : ToErase){
+    I->eraseFromParent(); //elimino le istruzioni
   }
-
   return transformed;
-  
 }
 
 bool runOnFunction(Function &F) {
@@ -160,7 +116,7 @@ namespace {
 //fuori dal namespace, ma in futuro andranno dentro la struct del passo
 
 // New PM implementation
-struct StrRed: PassInfoMixin<StrRed> {
+struct MultInstrOpt: PassInfoMixin<MultInstrOpt> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
@@ -189,8 +145,8 @@ llvm::PassPluginLibraryInfo getTestPassPluginInfo() {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "Strenght-Reduction") { // nome del passo che passeremo ad opt
-                    FPM.addPass(StrRed());
+                  if (Name == "Multi-Instruction-Optimization") { // nome del passo che passeremo ad opt
+                    FPM.addPass(MultInstrOpt());
                     return true;
                   }
                   return false;

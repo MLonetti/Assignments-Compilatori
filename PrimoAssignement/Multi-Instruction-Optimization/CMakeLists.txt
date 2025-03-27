@@ -4,7 +4,7 @@
 # nel pass.cpp che includerà tutti e 3 i passi, e quindi tutte e 3 le classi.
 
 cmake_minimum_required(VERSION 3.20)
-project(StrenghtReduction)
+project(MultiInstructioinOptimization)
 
 #===============================================================================
 # 1. LOAD LLVM CONFIGURATION
@@ -38,10 +38,10 @@ endif()
 #===============================================================================
 # 3. ADD THE TARGET
 #===============================================================================
-add_library(StrRed SHARED Pass2.cpp)
+add_library(MultInstrOpt SHARED Pass3.cpp)
 # qui nel passo finale, che avrà tutte le ottimizazioni rick dice di mettere un nome a cazzo, tipo Assignment1 Shared nomePassofinale.cpp
 
 # Allow undefined symbols in shared objects on Darwin (this is the default
 # behaviour on Linux)
-target_link_libraries(StrRed
+target_link_libraries(MultInstrOpt
   "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>")
