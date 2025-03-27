@@ -1,19 +1,18 @@
 
 # ignoriamo il file bytecode che viene creato quando applichiamo il passo al file .ll mediante opt
 # sarà l'utente a creareselo in locale
-Algebraic-Identity/Prova.Optimized.bc
+PrimoAssignement/Algebraic-Identity/Prova.Optimized.bc
 
 # idem per il file Prova.Optimized.ll ricavato dal bytecode; sarà l'utente che prodotto il bytecode, genererà il file llvm da leggere
-Algebraic-Identity/Prova.Optimized.ll
+PrimoAssignement/Algebraic-Identity/Prova.Optimized.ll
 
 
 # nascondiamo tutto ciò che andà dentro build
 
-Strenght-Reduction/Build/*
+PrimoAssignement/Strenght-Reduction/Build/*
 
 
 # nascondiamo tutto le ottimizzazioni .bc e .ll
-Strenght-Reduction./Optimized.*
+PrimoAssignement/Strenght-Reduction./Optimized.*
 
-./build/*
 .vscode/settings.json
