@@ -15,4 +15,7 @@ PrimoAssignement/Strenght-Reduction/Build/*
 # nascondiamo tutto le ottimizzazioni .bc e .ll
 PrimoAssignement/Strenght-Reduction./Optimized.*
 
+PrimoAssignment/Multi-Instruction-Optimization/build/*
+PrimoAssignment/Multi-Instruction-Optimization/Optimized.*
+
 .vscode/settings.json
