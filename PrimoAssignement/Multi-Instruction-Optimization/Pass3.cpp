@@ -58,13 +58,13 @@ bool runOnBasicBlock(BasicBlock &B) {
 
   for(Instruction &I : B){
     outs() << "Instruction: " << I << "\n";
-    int i = 0;
+    
 
     if (is_add(I)){
+      int i = 0;
       for(auto *Iter = I.op_begin(); Iter != I.op_end(); ++Iter){
         Value *Op = *Iter;
         if(ConstantInt *CI = dyn_cast<ConstantInt>(Op)){
-          outs() << "Trovata somma con operando costante!\n";
           Value *otherOp = I.getOperand(1-i);
           Instruction*nextInst = I.getNextNode();
 
@@ -87,6 +87,51 @@ bool runOnBasicBlock(BasicBlock &B) {
           }
         }
         i=i+1;
+      }
+    }else if(is_sub(I)){
+      int i = 0;//indice per tracciare gli operandi nella eventuale add dopo la sub
+      /*
+        gestiamo ora la situazione del tipo:
+        a = b - 1
+        c = a + 1 V 1 + a
+        c = b ed allora tutte le istruzioni che usavano c, utilizzeranno l'operando b
+      */
+     
+      //non iteriamo le istruzioni in quanto abbiamo un ordine da seguire con gli operandi
+      Value *Operand0 = I.getOperand(0);
+      Value *Operand1 = I.getOperand(1);
+
+      if(ConstantInt *CI = dyn_cast<ConstantInt>(Operand1)){
+        //controlliamo se dopo abbiamo una add con le caratteristiche che ci interessano
+        Instruction *nextInst = I.getNextNode();
+        if(nextInst != nullptr && is_add(*nextInst)){
+          // nella sub non ci interessa l'ordine degli operandi, ma ci interessa se i due comunque rispecchiano le caratteristiche
+
+          for(auto Iter = nextInst->op_begin(); Iter != nextInst->op_end(); ++Iter){
+            Value *Op = *Iter;
+            if(ConstantInt *CI2 = dyn_cast<ConstantInt>(Op)){
+              //se l'operando è una costante intera, vediamo se le due istruzioni verifiano le condizioni
+              Value *otherOp = nextInst->getOperand(1-i);
+
+              if(otherOp == &I && Op == Operand1){//controlliamo la costante della add sia uguale alla costante della sub, poi controlliamo che
+                                                //l'altro operando della add, corrispondi alla sub (operando sub)
+
+                outs() << "Trovata add ridondante!: " << *nextInst << "\n";
+                nextInst->replaceAllUsesWith(Operand0); //sostituisco tutti gli usi della add con il primo operando della sub
+
+                ToErase.push_back(nextInst); //aggiungo l'istruzione da eliminare al vettore
+                transformed = true;
+                outs() << "Istruzione eliminata!\n";
+
+                outs() <<"ora le istruzioni utilizzeranno direttamente l'operando della sub! " << *Operand0 << "\n";
+
+              }
+
+            }
+            i+=1;
+          }
+
+        }
       }
     }
   }
