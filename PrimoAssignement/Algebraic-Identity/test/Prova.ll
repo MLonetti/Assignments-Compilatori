@@ -1,4 +1,3 @@
-
 define dso_local i32 @prova(i32 noundef %0, i32 noundef %1) #0 {
   
   %3 = add nsw i32 %0, 0
@@ -11,6 +10,10 @@ define dso_local i32 @prova(i32 noundef %0, i32 noundef %1) #0 {
 
   %7 = mul nsw i32 %5, %6
 
-  ret i32 %7
+  %8 = sdiv i32 %4, 1 
+
+  %9 = sub i32 %5, 0
+
+  ret i32 %9
 }
 

@@ -18,4 +18,5 @@ PrimoAssignement/Strenght-Reduction./Optimized.*
 PrimoAssignment/Multi-Instruction-Optimization/build/*
 PrimoAssignment/Multi-Instruction-Optimization/Optimized.*
 
+.vscode/c_cpp_properties.json
 .vscode/settings.json

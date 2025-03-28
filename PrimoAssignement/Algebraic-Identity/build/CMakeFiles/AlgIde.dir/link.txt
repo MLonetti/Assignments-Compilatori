@@ -1,1 +1,1 @@
-/usr/bin/c++ -fPIC  -fno-rtti -shared -Wl,-soname,libAlgIde.so -o libAlgIde.so CMakeFiles/AlgIde.dir/aPass1.cpp.o 
+/usr/bin/c++ -fPIC -shared -Wl,-soname,libAlgIde.so -o libAlgIde.so CMakeFiles/AlgIde.dir/aPass1.cpp.o 

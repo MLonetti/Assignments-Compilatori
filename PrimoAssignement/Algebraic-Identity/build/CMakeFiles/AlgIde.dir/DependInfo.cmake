@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/kiwi/Laboratori_Compilatori/PrimoAssignment/aPass1.cpp" "CMakeFiles/AlgIde.dir/aPass1.cpp.o" "gcc" "CMakeFiles/AlgIde.dir/aPass1.cpp.o.d"
+  "/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/aPass1.cpp" "CMakeFiles/AlgIde.dir/aPass1.cpp.o" "gcc" "CMakeFiles/AlgIde.dir/aPass1.cpp.o.d"
   )
 
 # Targets to which this target links.
