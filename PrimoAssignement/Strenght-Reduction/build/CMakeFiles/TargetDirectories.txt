@@ -1,9 +1,0 @@
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/intrinsics_gen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/omp_gen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/acc_gen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/ARMTargetParserTableGen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/AArch64TargetParserTableGen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/RISCVTargetParserTableGen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/StrRed.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/edit_cache.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Strenght-Reduction/build/CMakeFiles/rebuild_cache.dir
