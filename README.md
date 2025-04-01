@@ -15,22 +15,20 @@ In questo assignement trattiamo come utilizzare LLVM-19 per svolgere passi LLVM 
 
 Pre-Test: **Creazione ambiente di test**
     Creiamo le seguenti cartelle nella seguente struttura:
-    ```bash
+    
     ProgramRootFolder
     |
-    |_ Build #Verrà usata per compilare il passo d'ottimizzazione
+    |_ Build #Verrà usata per compilare il passo d'ottimizzazione\m
     |_ Test #Conterrà il codice LLVM da ottimizzare
     |_ CMakeList.txt #Contiene le istruzioni di building del passo
     \_ Pass.cpp #L'effettivo passo che servirà poi per l'ottimizzazione del codice LLVM
-    ```
     
 1.  **Building del passo LLVM**
 
-    * Compilare il codice C/C++ in IR utilizzando `cmake`:
-    Utilizziamo all'interno di Build il comando cmake per la costrire gli elementi che serviranno poi per compilare il passo
+    * Compilamo il codice C/C++ in IR tramite `cmake` all'interno della cartella Build, esso è necessario per la costruzione degli elementi che serviranno poi per compilare il passo
 
     ```bash
-    cd Build/
+    cd Build/ &&
     cmake -DLT_LLVM_INSTALL_DIR=/path/install/llvm-19 path/to/CMakeList.txt
     ```
 
@@ -43,6 +41,8 @@ Pre-Test: **Creazione ambiente di test**
     ```bash
     opt-19 -load-pass-plugin=path/to/libAssignement.so -passes='Algebraic-Identity,Strenght-Reduction,Multi-Instruction-Operation' path/to/file.ll -So file.optimized.ll
     ```
+    - Tramite l'opzione ```-load-pass-plugin=``` carichiamo all'interno di opt il file complilato nel passo precedente tramite ```make```
+    - Con l'opzione ```-passes=""``` indichiamo tramite il loro nome, tutti i passi contenuti all'interno del file ```libAssignement.so``` che vogliamo applicare al file .ll dato come input
 
 3.  **Analisi dell'IR ottimizzato:**
 
