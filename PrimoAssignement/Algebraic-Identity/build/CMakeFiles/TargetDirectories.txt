@@ -1,9 +1,0 @@
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/intrinsics_gen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/omp_gen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/acc_gen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/ARMTargetParserTableGen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/AArch64TargetParserTableGen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/RISCVTargetParserTableGen.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/AlgIde.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/edit_cache.dir
-/home/davide/Scrivania/Primo-Assignment-middle-end/PrimoAssignement/Algebraic-Identity/build/CMakeFiles/rebuild_cache.dir
