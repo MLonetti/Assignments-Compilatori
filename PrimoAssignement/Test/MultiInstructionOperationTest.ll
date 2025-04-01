@@ -11,7 +11,7 @@ define i32 @Multi_Instruction_Operation() {
   
   %sub2 = sub i32 %add, 3; deve essere eliminata anche questa, dato ch3e rispecchia la prima add trovata
   
-  ; usi della subtraction cge mi aspetto vengano rimpiazati con %val
+  ; usi della subtraction che mi aspetto vengano rimpiazati con %val
   %mul = mul i32 %sub, 15   ; lei che usa la sub, mi aspetto che utilizzerà direttamente %val
   
   ; sottrazione seguita da addizione
