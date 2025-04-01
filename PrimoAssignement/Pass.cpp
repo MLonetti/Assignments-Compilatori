@@ -327,7 +327,7 @@ namespace {
                 I.replaceAllUsesWith(NewShift);
                 ToErase.push_back(&I);
 
-                BinaryOperator *NewSub = BinaryOperator::Create(Instruction::Sub, NewShift, Other_operand);
+                BinaryOperator *NewSub = BinaryOperator::Create(Instruction::Sub, NewShift, ConstantInt::get(NewShift->getType(), 1));
                 NewSub->insertAfter(NewShift);
 
                 outs() << "creo nuova istruzione shift " << *NewShift << " da rimpiazzare con la Mul precedente detectata\n";
@@ -350,7 +350,7 @@ namespace {
                 I.replaceAllUsesWith(NewShift);
                 ToErase.push_back(&I);
 
-                BinaryOperator *NewAdd = BinaryOperator::Create(Instruction::Add, NewShift, Other_operand);
+                BinaryOperator *NewAdd = BinaryOperator::Create(Instruction::Add, NewShift, ConstantInt::get(NewShift->getType(), 1));
                 NewAdd->insertAfter(NewShift);
 
                 outs() << "creo nuova istruzione shift " << *NewShift << " da rimpiazzare con la Mul precedente detectata\n";
