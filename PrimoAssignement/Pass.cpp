@@ -164,6 +164,7 @@ namespace {
                 break;
               }
             }
+            i += 1;
           }
         }
         else if (is_sub(Inst))
@@ -184,7 +185,6 @@ namespace {
             }
           }
         }
-        i += 1;
       }
 
       // cancelliamo le istruzioni dopo averle iterate tutte, per evitare probleimi di iterazione
