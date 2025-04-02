@@ -74,7 +74,7 @@ namespace {
       for (Instruction &Inst : BB)
       { // iteriamo le istruzioni all'interno del basicblock passato
 
-        int i = 0; // ogni istruzione iterata, il contatore viene ridefinito a 0.
+        int i = 0; //dopo ogni istruzione iterata, il contatore viene ridefinito a 0.
 
         outs() << "Itero l'istruzione: " << Inst << "\n";
 
@@ -100,8 +100,8 @@ namespace {
                 // se i = 0, vuol dire che l'elemento neutrale è il primo operando, perciò l'altro operando sarà
                 // Inst.getOperand(1-0) che è appunto il secondo
 
-                // se la i fosse 1, invece avremmo che l'elemento neutro sarà il secondo parametro, perciò
-                // andiamo a prendere il primo parametro non neutrale con Inst.getOperand(1-1)
+                // se la i fosse 1, invece avremmo che l'elemento neutro sarà il secondo operando, perciò
+                // andiamo a prendere il primo operando non neutrale con Inst.getOperand(1-1)
 
                 // sfruttiamo il fatto che sappiamo di avere Operand 0 ed Operand 1 e puntiamo ad uno dei due così.
 
@@ -187,7 +187,7 @@ namespace {
         }
       }
 
-      // cancelliamo le istruzioni dopo averle iterate tutte, per evitare probleimi di iterazione
+      // cancelliamo le istruzioni dopo averle iterate tutte, per evitare problemi di iterazione
       outs() << "\nHo eliminato le seguenti istruzioni: \n";
       for (Instruction *I : toErase)
       {
@@ -224,9 +224,6 @@ namespace {
       return PreservedAnalyses::all();
     }
 
-    // Without isRequired returning true, this pass will be skipped for functions
-    // decorated with the optnone LLVM attribute. Note that clang -O0 decorates
-    // all functions with optnone.
     static bool isRequired() { return true; }
   };
 
@@ -298,7 +295,6 @@ namespace {
               {
                 outs() << "Trovata MUL con costante intera potenza di 2 ";
 
-                // facciamo la classica roba di sempre
                 int shift_val = Val.logBase2(); // valore che utilizzeremo per l'istruzione shift che andiamo a creare
 
                 Value *Other_operand = I.getOperand(1 - i); // prendiamo l'altro operando della moltiplicazione che applicheremo alla shift
@@ -308,8 +304,8 @@ namespace {
 
                 NewShift->insertAfter(&I); // inseriamo l'istruzione dopo la moltiplicazione
 
-                I.replaceAllUsesWith(NewShift); // sostituiamo la moltiplicazione con la shift
-                ToErase.push_back(&I);          // aggiungiamo l'istruzione da eliminare al vettore
+                I.replaceAllUsesWith(NewShift); // chi utilizzava la moltiplicazione ora utilizzerà la shift
+                ToErase.push_back(&I);          // aggiungiamo l'istruzione da eliminare (la mul) al vettore
                 transformed = true;
 
                 break; // usciamo dal ciclo, e iteriamo la prossima istruzione
@@ -475,7 +471,7 @@ namespace {
             if (ConstantInt *CI = dyn_cast<ConstantInt>(Op)) {
               Value *otherOp = I.getOperand(1 - i);
     
-              // Itera manualmente su tutte le istruzioni successive a I
+              // Iteriamo su tutte le istruzioni successive a I (add) e devo trovare la sub
               Instruction *NextInst = I.getNextNode();
               while (NextInst != nullptr){
                 if (is_sub(*NextInst)){

@@ -139,13 +139,13 @@ opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Strenght-Reduction' Te
 Ed infine:
 
 ```bash
-opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Multi-Instruction_Operation' Test/MultiInstructionOperationTest.ll -So Optimized.ll
+opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Multi-Instruction-Operation' Test/MultiInstructionOperationTest.ll -So Optimized.ll
 ```
 ---
 
 3. **Analisi dell'IR ottimizzato:**
 
-Si può analizzare il risultato dell'ottimizzazione all'interno del file che verrà generato "Optimized.ll"
+Si può analizzare il risultato dell'ottimizzazione all'interno del file che verrà generato: "Optimized.ll"
 
 ## Conclusioni
 
