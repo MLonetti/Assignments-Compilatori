@@ -60,7 +60,7 @@ In questo passo andiamo ad ottimizzare anche le moltiplicazioni in cui l'operand
 
 Questo passo combina più istruzioni in una singola operazione per ridurre la complessità del codice. Ad esempio:
 - **Addizione seguita da sottrazione**: `a = x + y ; b = a - y → b = x`
-- **Sottrazione seguita da addizione**: ``a = x - y ; b = a + y → b = x`
+- **Sottrazione seguita da addizione**: `a = x - y ; b = a + y → b = x`
 
 ---
 
@@ -95,7 +95,7 @@ Ora la nostra struttura sarà la seguente:
 
 ## Applicazione dei passi di ottimizzazione
     
-1.  **Building del passo LLVM**
+1. **Building del passo LLVM**
 
 Spostiamoci all'interno della directory Build/ appena creata:
 
@@ -114,23 +114,36 @@ Stiamo specificando:
 Con questo comando andiamo a generare i file necessari per la compilazione.
 
 lanciando il comando ```make```, andiamo a compilare il file sorgente in cui sono inclusi i 3 passi di ottimizzazione (Pass.cpp) 
-- Verrà quindi generato un file .so (shared object), che verrà applicato ai file LLVM da ottimizzare
+- Verrà quindi generato un file .so (shared object), che verrà applicato ai file LLVM da ottimizzare.
+
+---
     
-2.  **Esecuzione dei passi di ottimizzazione:**
+2. **Esecuzione dei passi di ottimizzazione:**
 
 Per eseguire i nostri passi di ottimizzazione utilizzeremo lo strumento OPT, alla quale passeremo il nostro file in formato shared object, precedentemente creato.
 
 Il comando che utilizzeremo è il seguente:
 
 ```bash
-opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Algebraic-Identity Test/AlgebraicIdentityTest -So Optimized.ll
+opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Algebraic-Identity' Test/AlgebraicIdentityTest.ll -So Optimized.ll
 ```
 - **`-load-pass-plugin`**: Carichiamo il file `.so` contenente i passi di ottimizzazione.
 - **`-passes`**: Specifica quale dei 3 passi di ottimizzazione vogliamo applicare.
 - **`-S`**: Genera un file LLVM leggibile.
 - **`-o`**: Specifica il file di output ottimizzato.
 
-3.  **Analisi dell'IR ottimizzato:**
+È possibile anche testare le altre due ottimizzazioni con i comandi:
+```bash
+opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Strenght-Reduction' Test/StrenghtReductionTest.ll -So Optimized.ll
+```
+Ed infine:
+
+```bash
+opt-19 -load-pass-plugin=Build/libAssignement.so -passes='Multi-Instruction_Operation' Test/MultiInstructionOperationTest.ll -So Optimized.ll
+```
+---
+
+3. **Analisi dell'IR ottimizzato:**
 
 Si può analizzare il risultato dell'ottimizzazione all'interno del file che verrà generato "Optimized.ll"
 
