@@ -8,7 +8,7 @@ In questo primo assignment, abbiamo sviluppato tre passi di ottimizzazione. Ognu
 
 ### 1. **Algebraic Identity**
 
-Questo passo elimina operazioni ridondanti o inutili basate su identità algebriche. Ad esempio:
+Questo passo elimina operazioni ridondanti basate su identità algebriche. Ad esempio:
 - **Moltiplicazioni per 1**: `x * 1 → x`
 - **Divisioni per 1**:  `x : 1 → x`
 - **Addizioni con 0**: `x + 0 → x`
