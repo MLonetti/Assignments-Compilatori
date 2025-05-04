@@ -32,6 +32,45 @@ struct TestPass: PassInfoMixin<TestPass> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
 
+  bool CodeMotionPossible(Instruction *Inst, Loop &L, DominatorTree &DT) {
+    // Ottieni il blocco che contiene l'istruzione
+    BasicBlock *Parent = Inst->getParent();
+
+    // Ottieni tutte le uscite del loop
+    std::vector<BasicBlock*> ExitBlocks;
+    L.getExitBlocks(ExitBlocks);
+
+    // Controlla se il blocco che contiene l'istruzione domina tutte le uscite del loop
+    for (BasicBlock *ExitBlock : ExitBlocks) {
+      if (!DT.dominates(Parent, ExitBlock)) {
+        // Se il blocco non domina una delle uscite, controlla la lista degli usi
+        if (Inst->use_empty()) {
+          // Se la lista degli usi è vuota, l'istruzione è "dead" e può essere spostata
+          return true;
+        }
+
+        // Itera su tutti gli usi dell'istruzione
+        for (User *U : Inst->users()) {
+          if (Instruction *UserInst = dyn_cast<Instruction>(U)) {
+            BasicBlock *UserBB = UserInst->getParent();
+
+            // Controlla se il blocco che usa l'istruzione è un successore del blocco Parent
+            for (BasicBlock *Succ : successors(Parent)) {
+              if (Succ == UserBB) {
+                return false; // Non possiamo spostare l'istruzione, poiché è usata in un successore
+              }
+            }
+          }
+        }
+        // Se nessun blocco che usa l'istruzione è un successore, la code motion è possibile
+        return true;
+      }
+    }
+
+    // Se il blocco domina tutte le uscite, la code motion è possibile
+    return true;
+  }
+
   bool isInstLoopInvariant(Instruction &I, Loop &L, const std::vector<Instruction*> &LoopInvariantInstructions){
     //controlliamo se l'istruzione è loop invariant
 
@@ -42,11 +81,6 @@ struct TestPass: PassInfoMixin<TestPass> {
 
     //controlliamo che l'istruzione non sia una branch, in tal caso non è loop invariant
     if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
-      return false;
-    }
-
-    //contrilliamo che l'istruzione non sia una call, in tal caso non è loop invariant
-    if (CallInst *CI = dyn_cast<CallInst>(&I)) {
       return false;
     }
 
@@ -96,7 +130,7 @@ struct TestPass: PassInfoMixin<TestPass> {
     errs() << "L'istruzione " << I << " è loop invariant!\n";
   }
 
-  void RunOnLoops(Loop &L) {
+  void RunOnLoops(Loop &L, DominatorTree &DT) {
     std::vector<Instruction*> LoopInvariantInstructions;
 
     // Itera su tutti i BasicBlock del loop
@@ -116,24 +150,43 @@ struct TestPass: PassInfoMixin<TestPass> {
         errs() << *Inst << "\n";
     }
     errs() << "\n";
+
+
+    /*-----------------------------------------------------------------------------------------------------------------------------------------------
+
+      SECONDA PARTE DEL PASS: 
+      Dopo aver selezionato le istruzioni loop invariant di ogni loop, dovremo ceffettuare la code motion, ovvero spostarle nel preheader del loop.
+
+    ------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+    // Per determinare se una istruzione loop invariant può essere spostata, il basic block alla quale appartiene l'istruzione deve dominare tutte le uscite
+    // del loop.
+
+    for(Instruction *Inst : LoopInvariantInstructions){
+      if(CodeMotionPossible(Inst, L, DT)){
+        // se le condizioni all'interno della funzione Code motion vanno a buon fine 
+      }
+    }
+
 }
 
-void RunOnLoopInfo(LoopInfo &LI) {
+void RunOnLoopInfo(LoopInfo &LI, DominatorTree &DT) {
     for (Loop *L : LI) {
-        RunOnLoops(*L);
+        RunOnLoops(*L, DT);
     }
 }
 
 PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
-    LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+  LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+  DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
 
-    if(LI.empty()) {
-        errs() << "Nessun loop trovato in " << F.getName() << "\n";
-        return PreservedAnalyses::all();
-    }
-    RunOnLoopInfo(LI);
-
+  if(LI.empty()) {
+    errs() << "Nessun loop trovato in " << F.getName() << "\n";
     return PreservedAnalyses::all();
+  }
+  RunOnLoopInfo(LI, DT);
+
+  return PreservedAnalyses::all();
 }
 
 
