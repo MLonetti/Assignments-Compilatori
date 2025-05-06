@@ -15,6 +15,7 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Dominators.h"
 
 using namespace llvm;
 
@@ -37,7 +38,7 @@ struct TestPass: PassInfoMixin<TestPass> {
     BasicBlock *Parent = Inst->getParent();
 
     // Ottieni tutte le uscite del loop
-    std::vector<BasicBlock*> ExitBlocks;
+    llvm::SmallVector<BasicBlock*, 4> ExitBlocks;
     L.getExitBlocks(ExitBlocks);
 
     // Controlla se il blocco che contiene l'istruzione domina tutte le uscite del loop
@@ -54,8 +55,9 @@ struct TestPass: PassInfoMixin<TestPass> {
           if (Instruction *UserInst = dyn_cast<Instruction>(U)) {
             BasicBlock *UserBB = UserInst->getParent();
 
-            // Controlla se il blocco che usa l'istruzione è un successore del blocco Parent
-            for (BasicBlock *Succ : successors(Parent)) {
+            // Controlla se il blocco che usa l'istruzione è un successore del blocco exit non dominato dal BB con l'istruzione loop invariant
+            // Se è un successore, non possiamo spostare l'istruzione, in quanto è usata e non è dead.
+            for (BasicBlock *Succ : successors(ExitBlock)) {
               if (Succ == UserBB) {
                 return false; // Non possiamo spostare l'istruzione, poiché è usata in un successore
               }
@@ -147,7 +149,7 @@ struct TestPass: PassInfoMixin<TestPass> {
     // Stampa le istruzioni loop invariant per il loop corrente
     errs() << "Istruzioni Loop Invariant nel Loop con header: " << L.getHeader()->getName() << "\n";
     for (auto *Inst : LoopInvariantInstructions) {
-        errs() << *Inst << "\n";
+      errs() << *Inst << "\n";
     }
     errs() << "\n";
 
@@ -164,7 +166,14 @@ struct TestPass: PassInfoMixin<TestPass> {
 
     for(Instruction *Inst : LoopInvariantInstructions){
       if(CodeMotionPossible(Inst, L, DT)){
-        // se le condizioni all'interno della funzione Code motion vanno a buon fine 
+        // se le condizioni all'interno della funzione Code motion vanno a buon fine
+        
+        BasicBlock *Preheader = L.getLoopPreheader();
+        if(Preheader != nullptr){
+          //se il preheader non è nullo, allora possiamo spostare l'istruzione
+          Inst->moveBefore(Preheader->getTerminator());
+          errs() << "Istruzione spostata nel preheader del loop: " << *Inst << "\n";
+        } 
       }
     }
 
