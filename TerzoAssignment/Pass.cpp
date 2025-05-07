@@ -29,11 +29,37 @@ namespace {
 
 
 // New PM implementation
-struct TestPass: PassInfoMixin<TestPass> {
+struct LICMPass: PassInfoMixin<LICMPass> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
 
-  bool CodeMotionPossible(Instruction *Inst, Loop &L, DominatorTree &DT) {
+  void moveInst(Instruction &I, Loop &L) {
+    if(!L.contains(I.getParent())){
+      //istruzione già spostata e quindi non contenuta nel loop
+      return;
+    }
+
+    for(auto *op = I.op_begin(); op != I.op_end(); ++op){
+      
+      if(Instruction *Inst = dyn_cast<Instruction>(*op)){
+        if(L.contains(Inst->getParent())){
+          //Gli operandi dell'istruzione all'interno del loop, vanno prima spostati
+          moveInst(*Inst, L);
+        }
+      }
+    }
+
+    // Usciti dal loop siamo sicuri che possiamo spostare l'istruzione, in quanto gli operandi sono stati altrettanto spostati 
+    
+    // Ottieni il preheader del loop
+    BasicBlock *Preheader = L.getLoopPreheader();
+
+    // Sposta l'istruzione nel preheader
+    I.moveBefore(Preheader-> getTerminator());
+    errs() << "Istruzione spostata: " << I << "\n";
+  }
+
+  bool codeMotionPossible(Instruction *Inst, Loop &L, DominatorTree &DT) {
     // Ottieni il blocco che contiene l'istruzione
     BasicBlock *Parent = Inst->getParent();
 
@@ -81,14 +107,10 @@ struct TestPass: PassInfoMixin<TestPass> {
       return false;
     }
 
-    //controlliamo che l'istruzione non sia una branch, in tal caso non è loop invariant
-    if (BranchInst *BI = dyn_cast<BranchInst>(&I)) {
-      return false;
-    }
-
-    //controlliamo che l'istruzione non sia una return, in tal caso non è loop invariant
-    if (ReturnInst *RI = dyn_cast<ReturnInst>(&I)) {
-      return false;
+    //se l'istruzione non è una BinaryOperator, non è loop invariant
+    BinaryOperator *BO = dyn_cast<BinaryOperator>(&I);
+    if (!BO) {
+        return false;
     }
 
     //Ora iniziamo a fare i controlli sugli operandi dell'istruzione per determinare se è loop invariant
@@ -118,12 +140,10 @@ struct TestPass: PassInfoMixin<TestPass> {
 
       //controlliamo ora se l'operando è attribuibile ad un'istruzione considerata loop invariant
       //se uno degli operandi è loop invariant, allora l'istruzione è loop invariant
-      for (auto *LoopInvariantInst : LoopInvariantInstructions){
-        if (Instruction *Inst = dyn_cast<Instruction>(Operand)) {
-          if (Inst == LoopInvariantInst) {
-            // L'istruzione è loop invariant dato che uno dei suoi operandi è loop invariant
-            continue;
-          }
+      if (Instruction *Inst = dyn_cast<Instruction>(Operand)) {
+        if(!isInstLoopInvariant(*Inst, L, LoopInvariantInstructions)){
+          //l'istruzione non è loop invariant
+          return false;
         }
       }
     }
@@ -132,7 +152,7 @@ struct TestPass: PassInfoMixin<TestPass> {
     errs() << "L'istruzione " << I << " è loop invariant!\n";
   }
 
-  void RunOnLoops(Loop &L, DominatorTree &DT) {
+  void runOnLoops(Loop &L, DominatorTree &DT) {
     std::vector<Instruction*> LoopInvariantInstructions;
 
     // Itera su tutti i BasicBlock del loop
@@ -165,23 +185,20 @@ struct TestPass: PassInfoMixin<TestPass> {
     // del loop.
 
     for(Instruction *Inst : LoopInvariantInstructions){
-      if(CodeMotionPossible(Inst, L, DT)){
+      if(codeMotionPossible(Inst, L, DT)){
         // se le condizioni all'interno della funzione Code motion vanno a buon fine
         
-        BasicBlock *Preheader = L.getLoopPreheader();
-        if(Preheader != nullptr){
-          //se il preheader non è nullo, allora possiamo spostare l'istruzione
-          Inst->moveBefore(Preheader->getTerminator());
-          errs() << "Istruzione spostata nel preheader del loop: " << *Inst << "\n";
-        } 
+        // controlliamo se gli operandi della istruzione sono già stati spostati, se non lo sono e sono ancora nel loop, non possiamo spostare l'istruzione
+        moveInst(*Inst, L);
+
       }
     }
 
 }
 
-void RunOnLoopInfo(LoopInfo &LI, DominatorTree &DT) {
+void runOnLoopInfo(LoopInfo &LI, DominatorTree &DT) {
     for (Loop *L : LI) {
-        RunOnLoops(*L, DT);
+        runOnLoops(*L, DT);
     }
 }
 
@@ -193,7 +210,7 @@ PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
     errs() << "Nessun loop trovato in " << F.getName() << "\n";
     return PreservedAnalyses::all();
   }
-  RunOnLoopInfo(LI, DT);
+  runOnLoopInfo(LI, DT);
 
   return PreservedAnalyses::all();
 }
@@ -211,13 +228,13 @@ PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
 // New PM Registration
 //-----------------------------------------------------------------------------
 llvm::PassPluginLibraryInfo getTestPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "TestPass", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "LICMPass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "test-pass") {
-                    FPM.addPass(TestPass());
+                  if (Name == "LICM-Pass") {
+                    FPM.addPass(LICMPass());
                     return true;
                   }
                   return false;
@@ -232,13 +249,3 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
   return getTestPassPluginInfo();
 }
-
-
-/*
-  in run che prende le funzioni che incontra nel codice LLVM, chiamiamo RunOnBasickBlock, che è la funzione che preso un oggetto Functions itera i basick block al suo interno
-
-  in queta funzione, per ogni oggetto basic block iterato, si chiama RunOnBasicBlock, che passa il basic block corrente ed itera tutte le istruzioni al suo interno,
-  facendo un'analisi di ogni istruzione grazie al casting
-      - recupera per bene queste cose sugli appunti, e ovviamente integra con il codice LLVM e mostra il perche la situazione non funziona nel caso di 
-        Loop.ll
-*/
