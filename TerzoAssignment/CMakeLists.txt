@@ -33,9 +33,9 @@ endif()
 #===============================================================================
 # 3. ADD THE TARGET
 #===============================================================================
-add_library(TestPass SHARED Pass.cpp)
+add_library(LICMPass SHARED Pass.cpp)
 
 # Allow undefined symbols in shared objects on Darwin (this is the default
 # behaviour on Linux)
-target_link_libraries(TestPass
+target_link_libraries(LICMPass
   "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>")
