@@ -135,11 +135,10 @@ struct LICMPass: PassInfoMixin<LICMPass> {
           //l'istruzione non è loop invariant dato che un suo operando è definito all'interno del loop
           return false;
         }
-        //altrimenti si continua e si guarderà se l'altro operando sarà definito dentro al loop
+        //altrimenti si continua e si guarderà l'altro operando
       }
 
       //controlliamo ora se l'operando è attribuibile ad un'istruzione considerata loop invariant
-      //se uno degli operandi è loop invariant, allora l'istruzione è loop invariant
       if (Instruction *Inst = dyn_cast<Instruction>(Operand)) {
         if(!isInstLoopInvariant(*Inst, L, LoopInvariantInstructions)){
           //l'istruzione non è loop invariant
@@ -177,12 +176,9 @@ struct LICMPass: PassInfoMixin<LICMPass> {
     /*-----------------------------------------------------------------------------------------------------------------------------------------------
 
       SECONDA PARTE DEL PASS: 
-      Dopo aver selezionato le istruzioni loop invariant di ogni loop, dovremo ceffettuare la code motion, ovvero spostarle nel preheader del loop.
+      Dopo aver selezionato le istruzioni loop invariant di ogni loop, dovremo effettuare la code motion, ovvero spostarle nel preheader del loop.
 
     ------------------------------------------------------------------------------------------------------------------------------------------------*/
-
-    // Per determinare se una istruzione loop invariant può essere spostata, il basic block alla quale appartiene l'istruzione deve dominare tutte le uscite
-    // del loop.
 
     for(Instruction *Inst : LoopInvariantInstructions){
       if(codeMotionPossible(Inst, L, DT)){
@@ -190,10 +186,8 @@ struct LICMPass: PassInfoMixin<LICMPass> {
         
         // controlliamo se gli operandi della istruzione sono già stati spostati, se non lo sono e sono ancora nel loop, non possiamo spostare l'istruzione
         moveInst(*Inst, L);
-
       }
     }
-
 }
 
 void runOnLoopInfo(LoopInfo &LI, DominatorTree &DT) {
