@@ -47,9 +47,22 @@ bool cfgEquivalenti(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PD
       //si controlla se l'entry di L1 domina l'entry di L2 e viceversa, così che se entriamo nel primo Loop, sicuramente si entra nel secondo
       // e se si è eseguito il secondo loop, allora sicuramente si è eseguito anche il primo
 
+      BasicBlock *L1Guard = L1.getLoopGuardBranch()->getParent(); //entry del primo loop
+      BasicBlock *L2Guard = L2.getLoopGuardBranch()->getParent(); //entry del secondo loop
+      if(DT.dominates(L1Guard, L2Guard) && PDT.dominates(L2Guard, L1Guard)){
+        //se l'entry di L1 domina l'entry di L2 e viceversa, allora la CFG è equivalente
+        return true; 
+      }
+
     }
-    // se entrambi i loop sono normali, si guarda che la entry di L1 domina la entry di L2
-  }else if(){
+    // se entrambi i loop non sono Guard ma normali, si guarda che la entry di L1 domina la entry di L2
+  }else if(L1.isnotGuarded() && L2.isNotGuarded()){
+    BasicBlock *L1Entry = L1.getLoopPreheader(); //entry del primo loop
+    BasicBlock *L2Entry = L2.getLoopPreheader(); //entry del secondo loop
+    if(DT.dominates(L1Entry, L2Entry) && PDT.dominates(L2Entry, L1Entry)){
+      //se l'entry di L1 domina l'entry di L2 e viceversa, allora la CFG è equivalente
+      return true; 
+    }
     
   }
   return false
