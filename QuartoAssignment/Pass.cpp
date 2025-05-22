@@ -38,7 +38,7 @@ struct LoopFusionPass0: PassInfoMixin<LoopFusionPass0> {
   può fare appunto la loop fusion.
 
 */ 
-bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI){
+bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &SE){
   // controlla se ci sono dipendenze negative tra i due loop
   // se ci sono dipendenze negative allora non si può fare la loop fusion
 
@@ -46,47 +46,123 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI){
     Per comprendere questo controllo, dobbiamo prima comprendere come sono rappresentate le store in LLVM
     esempio:
 
-    %1 = getelementptr i32, i32* %a, i64 0
-    %2 = store i32 0, i32* %1, align 4
+    %1 = getelementptr inbounds [10 x i32], ptr %array, i64 0, i64 %offset
+    %2 = store i32 valore, i32* %1, align 4
 
     Quando si accede alla store:
-      il primo operando (0) è il valore che si sta caricando nell'indirizzo in memoria
+      il primo operando (valore) è il valore che si sta caricando nell'indirizzo in memoria
       il secondo operando è l'indirizzo in memoria dove si sta caricando il valore
 
       in questo caso, prendiamo l'operando %1, lo castiamo ad instruction e qui vediamo due operandi:
         - il primo operando è il base register dell'array
-        - il secondo operando è l'offset
+        - l'ultimo operando è l'offset
 
     Quindi, questo è il metodo in cui accederemo alle store, prenderemo base register ed offset per vedere se poi avremo delle dipendenze negative
     nelle load che accederanno allo stesso indirizzo in memoria.
 
     Per le dipendenze negative: se l'offset della load è maggiore di quello della store, allora avremo una dipendenza negativa
 
-    Questo è il caso base, dove l'induction variable è uguale.
+    
   */
 
   for(BasicBlock *BB : L1->getBlocks()){
     for(Instruction &I : *BB){
       //vediamo se l'istruzione è una store
-      if(StoreInst *SI = dyn_cast<StoreInst>(&I)){
+      if(StoreInst *ST = dyn_cast<StoreInst>(&I)){
         //se l'istruzione è una store dobbiamo ottenere il base address
-        Value* DestOperand = SI-> getOperand(1); //ritorna l'operando dell'indirizzo in memoria dove si fa la store
+        Value* DestOperand = ST-> getOperand(1); //ritorna l'operando dell'indirizzo in memoria dove si fa la store
         // non è ancora il base register, è l'indirizzo considerando l'offset+base register, da questo dato dobbiamo ottenere il base register
 
         //facciamo il cast ad Instruction dell'operando per ottenere un oggetto Instruction, da qui prelevare l'operando che rappresenta il base register
         //preleviamo anche l'offest, che useremo per calcolare se la dipendenza è negativa.
+        outs() << "istruzione store: " << ST << "\n";
+        outs() << "operando destinazione: " << *DestOperand << "\n";
 
-        if(Instruction *Inst = dyn_cast<Instruction>(DestOperand)){
-          Value *BaseReg = Inst->getOperand(0); //ritorna il base register
-          Value *Offset = Inst->getOperand(1); //ritorna l'offset
+
+        if(GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(DestOperand)){
+          //se l'istruzione è una getelementptr, allora possiamo fare il cast ad Instruction
+          //e prelevare gli operandi che ci interessano
+        
+          if(Instruction *Inst = dyn_cast<Instruction>(DestOperand)){
+            Value *BaseReg = Inst->getOperand(0); //ritorna il base register
+            Value *Offset = Inst->getOperand(Inst->getNumOperands() - 1); //ritorna l'offset
+
+            outs() << "Base register: " << *BaseReg << "\n";
+            outs() << "Offset: " << *Offset << "\n";
+          
+        
+            //iteriamo tutte le load del secondo loop, poi controlliamo se il base register è uguale, altrimenti già non ci sarà dipendenza negativa
+            //se base register è uguale, ci concentreremo sull'offset, forse sarà da sfruttare la scalar evolution
+            // in quanto i registri di offset saranno sicuramente diversi, per l'SSA.
+
+            for(BasicBlock *BB2 : L2->getBlocks()){
+              for(Instruction &I2 : *BB2){
+                //vediamo se l'istruzione è una load
+                if(LoadInst *LO = dyn_cast<LoadInst>(&I2)){
+                  //se l'istruzione è una load dobbiamo ottenere il base address
+                  Value* SrcOperand = LO-> getOperand(0); //ritorna l'operando dell'indirizzo in memoria dove si fa la load
+                  outs() << "istruzione load: " << LO << "\n";
+                  outs() << "operando sorgente: " << SrcOperand << "\n";
+
+                  if(GetElementPtrInst *GEP2 = dyn_cast<GetElementPtrInst>(SrcOperand)){
+                    if(Instruction *Inst2 = dyn_cast<Instruction>(GEP2)){
+                      Value *BaseReg2 = Inst2->getOperand(0); //ritorna il base register
+                      Value *Offset2 = Inst2->getOperand(Inst2->getNumOperands() - 1); //ritorna l'offset
+
+                      outs() << "Base register: " << BaseReg2 << "\n";
+                      outs() << "Offset: " << Offset2 << "\n";
+
+                      if(BaseReg == BaseReg2){
+                        outs() << "I due loop hanno lo stesso base register\n";
+                      /*
+                        //se i due base register sono uguali, allora controlliamo se gli offset sono uguali
+
+                        //ora dobbiamo controllare gli offset, per questo utilizzeremo la scalar evolution applicata proprio agli operandi che rappresentano l'offser
+
+                        const SCEV *StoreOffset = SE.getSCEV(Offset);
+                        outs () << "StoreOffset: " << *StoreOffset << "\n";
+                        const SCEV *LoadOffset = SE.getSCEV(Offset2);
+                        outs () << "LoadOffset: " << *LoadOffset << "\n";
+                        //se LoadOffset è maggiore di StoreOffset, allora abbiamo una dipendenza negativa
+                        
+
+                        const SCEV* diff = SE.getMinusSCEV(StoreOffset, LoadOffset);
+                        outs() << "Differenza: " << *diff << "\n";
+                        if(SE.isKnownNonPositive(diff)){
+                          outs() << "Abbiamo una dipendenza negativa\n";
+                          //se abbiamo una dipendenza negativa, allora non possiamo fare la loop fusion
+                          return false;
+                        }
+                      */  
+
+                        //dopo aver fallito con il controllo sugli offset a basso livello, utilizziamo la dependence analysis, analizzando le store e load
+                        //con base register uguali.
+
+                        if(auto D = DI.depends(ST, LO, true)){
+                          //se la dipendenza è negativa, allora non possiamo fare la loop fusion
+                          unsigned Levels = D->getLevels();
+                          for(unsigned int i = 0; i < Levels; i++){
+                            if(D->isKnownNegative(i)){
+                              outs() << "Abbiamo una dipendenza negativa\n";
+                              //se abbiamo una dipendenza negativa, allora non possiamo fare la loop fusion
+                              return false;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-
       }
+      
     }
   }
 
-  
-  
+  return true; //se non ci sono dipendenze negative, allora si può fare la loop fusion
 }
 
 bool sameNumIterations(Loop *L1, Loop *L2, ScalarEvolution &SE){
@@ -211,7 +287,7 @@ bool loopFusion(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PDT, S
    
   }
 
-  if(analisiDipendenze(L1, L2, DI)){
+  if(analisiDipendenze(L1, L2, DI, SE)){
     //se non ci sono dipendenze tra i due loop, allora si può fare la loop fusion
     //outs() << "I due loop non hanno dipendenze\n";
   }

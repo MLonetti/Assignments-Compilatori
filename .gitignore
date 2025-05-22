@@ -10,5 +10,6 @@ PrimoAssignement/.vscode/settings.json
 TerzoAssignment/Build/*
 TerzoAssignment/Optimized.ll
 
-QuartoAssignment/Build/*
+QuartoAssignment/build/*
 QuartoAssignment/Optimized.ll
+QuartoAssignment/test/*.c
