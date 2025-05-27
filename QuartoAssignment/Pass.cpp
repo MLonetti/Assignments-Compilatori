@@ -38,6 +38,125 @@ struct LoopFusionPass0: PassInfoMixin<LoopFusionPass0> {
   può fare appunto la loop fusion.
 
 */ 
+
+/*
+  si visitano prima tutti i loop del livello superiore,e si controlla per tutte le coppie se è posibile la loop fusion
+
+  Poi si controllano in maniera ricorsiva eventuali loop figli, se ogni singolo loop ha almeno 2 loop figli.
+*/
+void visitaLoops(std::vector<Loop*> &Loops, LoopInfo &LI, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, DependenceInfo &DI){
+  //visita i loop e controlla se sono adiacenti, se hanno lo stesso numero di iterazioni, se sono equivalenti come CFG e se non hanno dipendenze negative
+  for(int i = 0; i < Loops.size(); i++){
+    for(int j = 0; j < Loops.size(); j++){
+      if(i!=j){
+        if(loopFusionPossible(Loops[i], Loops[j], DT, PDT, SE, DI)){
+          //se i due loop sono adiacenti, hanno lo stesso numero di iterazioni, sono equivalenti come CFG e non hanno dipendenze negative,
+          // allora si può fare la loop fusion
+          errs() << "Loop Fusion possibile tra: " << *Loops[i] << " e " << *Loops[j] << "\n";
+          loopFusion(Loops[i], Loops[j]);
+        }
+      }
+    }
+    std::vector<Loop*> SubLoops = Loops[i]->getSubLoops();
+    if(SubLoops.size() > 1){
+      //se il loop ha dei figli, allora visitiamo i figli
+      visitaLoops(SubLoops, LI, DT, PDT, SE, DI);
+    }
+  }
+}
+
+
+
+void loopFusion(Loop *L1, Loop *L2){
+  PHINode *L1IndVar = L1->getCanonicalInductionVariable();
+  errs() << "Induction variable del primo loop: " << *L1IndVar << "\n";
+  PHINode *L2IndVar = L2->getCanonicalInductionVariable();
+  errs() << "Induction variable del secondo loop: " << *L2IndVar << "\n";
+  
+  L2IndVar->replaceAllUsesWith(L1IndVar); //sostituiamo tutti gli usi della variabile di induzione del secondo loop con quella del primo loop
+
+  /*
+    MODIFICA 1:
+    L'header del loop 1 punterà all'exit del loop 2, così da non avere più il loop 2 come figlio del loop 1.
+    In questo modo il loop 2 sarà integrato nel body del loop 1 e non più un figlio del loop 1.
+  */
+
+  BasicBlock *L1Header = L1->getHeader();
+  BasicBlock *L1Exit = L1->getExitBlock();
+  BasicBlock *L2Exit = L2->getExitBlock();
+
+  Instruction* L1HeaderTerm = L1Header->getTerminator(); //prendiamo l'istruzione terminatrice dell'header del loop 1
+
+  if(BranchInst *BI = dyn_cast<BranchInst>(L1HeaderTerm)){
+    if(BI->isConditional()){
+      //se l'istruzione terminale dell'header del loop 1 è una branch condizionale, allora possiamo andare in due possibili basic block
+      if(BI->getSuccessor(0) == L1Exit){
+        //se il primo successore è l'header del loop 1, allora dobbiamo cambiare il secondo successore con l'exit del loop 2
+        BI->setSuccessor(0, L2Exit); //modifichiamo il secondo successore dell'istruzione branch condizionale dell'header del loop 1
+      }else if(BI->getSuccessor(1) == L1Exit){
+        //se il secondo successore è l'header del loop 1, allora dobbiamo cambiare il primo successore con l'exit del loop 2
+        BI->setSuccessor(1, L2Exit); //modifichiamo il primo successore dell'istruzione branch condizionale dell'header del loop 1
+      }
+    }
+  }
+  
+
+  /*
+    MODIFICA 2:
+    Il Body di L1 punterà al Body di L2.
+  */
+
+  //otteniamo il primo basic block del body del loop 2.
+  BasicBlock *L2Header = L2->getHeader();
+  BasicBlock *L2FirstBodyBlock = nullptr;
+  
+  for(BasicBlock *BB : successors(L2Header)){
+    // cerchiamo il primo basic block del body del loop 2, che non sia il latch
+    if(BB != L2Exit){
+      L2FirstBodyBlock = BB;
+      break; // una volta trovato il primo blocco del body del loop 2, usciamo dal ciclo
+    }
+  }
+
+  //otteniamo ora l'ultimo basic block del body del loop 1, che punterà al primo basic block del body del loop 2
+
+  BasicBlock *L1lastBodyBlock = L1->getLoopLatch()->getSinglePredecessor(); //prendiamo il predecessore del latch del loop 1, che è l'ultimo blocco del body del loop 1
+  Instruction *L1lastBodyTerm = L1lastBodyBlock->getTerminator(); //prendiamo l'istruzione terminatrice dell'ultimo blocco del body del loop 1
+
+  if(BranchInst *BI = dyn_cast<BranchInst>(L1lastBodyTerm)){
+    BI->setSuccessor(0, L2FirstBodyBlock);//ora il body di L1 punta al body di L2 e non più al latch di L1
+  }
+
+  /*
+    MODIFICA 3:
+    Il body di L2 punterà al latch di L1.
+  */
+  
+  BasicBlock *L2lastBodyBlock = L2->getLoopLatch()->getSinglePredecessor(); //prendiamo il predecessore del latch del loop 2, che è l'ultimo blocco del body del loop 2
+  Instruction *L2lastBodyTerm = L2lastBodyBlock->getTerminator(); //prendiamo l'istruzione terminatrice dell'ultimo blocco del body del loop 2
+
+  if(BranchInst *BI = dyn_cast<BranchInst>(L2lastBodyTerm)){
+    BI->setSuccessor(0, L1->getLoopLatch()); //ora il body di L2 punta al latch di L1 e non più al latch di L2
+  }
+  
+  /*
+    MODIFICA 4:
+    L'header di L2 invece che puntare al blocco exit, punterà al latch di L2, così da staccare il CFG del loop 2 dal loop 1.
+    Abbiamo difatto già integrato il corpo del loop 2 nel corpo del loop 1, ora dobbiamo staccare il CFG del loop 2 dal loop 1.
+  */
+
+  Instruction *L2HeaderTerm = L2Header->getTerminator(); //prendiamo l'istruzione terminatrice dell'header del loop 2
+
+  if(BranchInst *BI = dyn_cast<BranchInst>(L2HeaderTerm)){
+    if(BI->isConditional()){
+      //se l'istruzione terminale dell'header del loop 2 è una branch condizionale, allora possiamo andare in due possibili basic block
+      BI->setSuccessor(0, L2->getLoopLatch()); //modifichiamo il primo successore dell'istruzione branch condizionale dell'header del loop 2
+      BI->setSuccessor(1, L2->getLoopLatch()); //modifichiamo il secondo successore dell'istruzione branch condizionale dell'header del loop 2
+      //così scolleghiamo il CFG del loop 2 dal loop 1, in quanto ora l'header del loop 2 punterà al latch del loop 2
+    }
+  }
+}
+
 bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &SE){
   // controlla se ci sono dipendenze negative tra i due loop
   // se ci sono dipendenze negative allora non si può fare la loop fusion
@@ -169,6 +288,7 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
 bool sameNumIterations(Loop *L1, Loop *L2, ScalarEvolution &SE){
   // controlla se i due loop hanno lo stesso numero di iterazioni
   // si può fare in questo modo: si calcola il numero di iterazioni del primo loop e si confronta con il secondo loop
+
   // se sono uguali allora ritorna true, altrimenti false
   unsigned L1Num = SE.getSmallConstantTripCount(L1);
   unsigned L2Num = SE.getSmallConstantTripCount(L2);
@@ -178,6 +298,7 @@ bool sameNumIterations(Loop *L1, Loop *L2, ScalarEvolution &SE){
   
   if(L1Num == 0 || L2Num == 0){
     outs() << "impossibile definire il numero di iterazioni\n";
+    //può avere 0 iterazioni se non si riesce a determinare il numero effettivo di iterazioni
     return false;
   }
   else if(L1Num == L2Num){
@@ -254,7 +375,7 @@ bool sonoAdiacenti(Loop *L1, Loop *L2) {
   return false; //se non si verifica nessuna delle due condizioni, allora i loop non sono adiacentu, ma è presente qualcosa tra i due loop
 }
 
-bool loopFusion(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, DependenceInfo &DI){
+bool loopFusionPossible(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, DependenceInfo &DI){
   /*
     PRIMO CONTROLLO:
     controllo se i loop sono adiacenti
@@ -280,105 +401,31 @@ PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
   ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   DependenceInfo &DI = AM.getResult<DependenceAnalysis>(F);
 
-  //prendiamo il primo loop ed il secondo
-  Loop *L1 = LI.getTopLevelLoops()[1]; //sono al contrario, il secondo indice è il primo in realtà
-  Loop *L2 = LI.getTopLevelLoops()[0];
+  //prendiamo il vettore dei loop -> abbiamo solamente quelli del livello superiore
+  std::vector<Loop*> Loops = LI.getTopLevelLoops();
 
-  if(loopFusion(L1, L2, DT, PDT, SE, DI)){
+  visitaLoops(Loops, LI, DT, PDT, SE, DI);
+
+  /*for (int i = 0; i < Loops.size(); i++){
+    errs() << "Loop " << i << ": " << *Loops[i] << "\n";
+
+    // dal loop corrente, prendiamo il vettore dei loop figli
+    std::vector<Loop*> SubLoops = Loops[i]->getSubLoops();
+    for(int j = 0; j < SubLoops.size(); j++){
+      errs() << "subLoop " << j << ": " << *SubLoops[j] << "\n";
+    }
+  }
+  
+
+  if(loopFusionPossible(L1, L2, DT, PDT, SE, DI)){
     //si fa la loop fusion
 
     //modifichiamo gli usi della induction variable del loop 2 con quelli del loop 1
 
-    PHINode *L1IndVar = L1->getCanonicalInductionVariable();
-    errs() << "Induction variable del primo loop: " << *L1IndVar << "\n";
-    PHINode *L2IndVar = L2->getCanonicalInductionVariable();
-    errs() << "Induction variable del secondo loop: " << *L2IndVar << "\n";
-    
-    L2IndVar->replaceAllUsesWith(L1IndVar); //sostituiamo tutti gli usi della variabile di induzione del secondo loop con quella del primo loop
-
-    /*
-      MODIFICA 1:
-      L'header del loop 1 punterà all'exit del loop 2, così da non avere più il loop 2 come figlio del loop 1.
-      In questo modo il loop 2 sarà integrato nel body del loop 1 e non più un figlio del loop 1.
-    */
-
-    BasicBlock *L1Header = L1->getHeader();
-    BasicBlock *L1Exit = L1->getExitBlock();
-    BasicBlock *L2Exit = L2->getExitBlock();
-
-    Instruction* L1HeaderTerm = L1Header->getTerminator(); //prendiamo l'istruzione terminatrice dell'header del loop 1
-
-    if(BranchInst *BI = dyn_cast<BranchInst>(L1HeaderTerm)){
-      if(BI->isConditional()){
-        //se l'istruzione terminale dell'header del loop 1 è una branch condizionale, allora possiamo andare in due possibili basic block
-        if(BI->getSuccessor(0) == L1Exit){
-          //se il primo successore è l'header del loop 1, allora dobbiamo cambiare il secondo successore con l'exit del loop 2
-          BI->setSuccessor(0, L2Exit); //modifichiamo il secondo successore dell'istruzione branch condizionale dell'header del loop 1
-        }else if(BI->getSuccessor(1) == L1Exit){
-          //se il secondo successore è l'header del loop 1, allora dobbiamo cambiare il primo successore con l'exit del loop 2
-          BI->setSuccessor(1, L2Exit); //modifichiamo il primo successore dell'istruzione branch condizionale dell'header del loop 1
-        }
-      }
-    }
-   
-
-    /*
-      MODIFICA 2:
-      Il Body di L1 punterà al Body di L2.
-    */
-
-    //otteniamo il primo basic block del body del loop 2.
-    BasicBlock *L2Header = L2->getHeader();
-    BasicBlock *L2FirstBodyBlock = nullptr;
-    
-    for(BasicBlock *BB : successors(L2Header)){
-      // cerchiamo il primo basic block del body del loop 2, che non sia il latch
-      if(BB != L2Exit){
-        L2FirstBodyBlock = BB;
-        break; // una volta trovato il primo blocco del body del loop 2, usciamo dal ciclo
-      }
-    }
-
-    //otteniamo ora l'ultimo basic block del body del loop 1, che punterà al primo basic block del body del loop 2
-
-    BasicBlock *L1lastBodyBlock = L1->getLoopLatch()->getSinglePredecessor(); //prendiamo il predecessore del latch del loop 1, che è l'ultimo blocco del body del loop 1
-    Instruction *L1lastBodyTerm = L1lastBodyBlock->getTerminator(); //prendiamo l'istruzione terminatrice dell'ultimo blocco del body del loop 1
-
-    if(BranchInst *BI = dyn_cast<BranchInst>(L1lastBodyTerm)){
-      BI->setSuccessor(0, L2FirstBodyBlock);//ora il body di L1 punta al body di L2 e non più al latch di L1
-    }
-
-    /*
-      MODIFICA 3:
-      Il body di L2 punterà al latch di L1.
-    */
-    
-    BasicBlock *L2lastBodyBlock = L2->getLoopLatch()->getSinglePredecessor(); //prendiamo il predecessore del latch del loop 2, che è l'ultimo blocco del body del loop 2
-    Instruction *L2lastBodyTerm = L2lastBodyBlock->getTerminator(); //prendiamo l'istruzione terminatrice dell'ultimo blocco del body del loop 2
-
-    if(BranchInst *BI = dyn_cast<BranchInst>(L2lastBodyTerm)){
-      BI->setSuccessor(0, L1->getLoopLatch()); //ora il body di L2 punta al latch di L1 e non più al latch di L2
-    }
-    
-    /*
-      MODIFICA 4:
-      L'header di L2 invece che puntare al blocco exit, punterà al latch di L2, così da staccare il CFG del loop 2 dal loop 1.
-      Abbiamo difatto già integrato il corpo del loop 2 nel corpo del loop 1, ora dobbiamo staccare il CFG del loop 2 dal loop 1.
-    */
-
-    Instruction *L2HeaderTerm = L2Header->getTerminator(); //prendiamo l'istruzione terminatrice dell'header del loop 2
-
-    if(BranchInst *BI = dyn_cast<BranchInst>(L2HeaderTerm)){
-      if(BI->isConditional()){
-        //se l'istruzione terminale dell'header del loop 2 è una branch condizionale, allora possiamo andare in due possibili basic block
-        BI->setSuccessor(0, L2->getLoopLatch()); //modifichiamo il primo successore dell'istruzione branch condizionale dell'header del loop 2
-        BI->setSuccessor(1, L2->getLoopLatch()); //modifichiamo il secondo successore dell'istruzione branch condizionale dell'header del loop 2
-        //così scolleghiamo il CFG del loop 2 dal loop 1, in quanto ora l'header del loop 2 punterà al latch del loop 2
-      }
-    }
+    loopFusion(L1, L2);
 
   }
-
+  */
 
   return PreservedAnalyses::all();
 }
