@@ -114,38 +114,41 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
 
                       if(BaseReg == BaseReg2){
                         outs() << "I due loop hanno lo stesso base register\n";
-                      /*
-                        //se i due base register sono uguali, allora controlliamo se gli offset sono uguali
-
-                        //ora dobbiamo controllare gli offset, per questo utilizzeremo la scalar evolution applicata proprio agli operandi che rappresentano l'offser
 
                         const SCEV *StoreOffset = SE.getSCEV(Offset);
-                        outs () << "StoreOffset: " << *StoreOffset << "\n";
                         const SCEV *LoadOffset = SE.getSCEV(Offset2);
+
+                        outs () << "StoreOffset: " << *StoreOffset << "\n";
                         outs () << "LoadOffset: " << *LoadOffset << "\n";
-                        //se LoadOffset è maggiore di StoreOffset, allora abbiamo una dipendenza negativa
-                        
 
-                        const SCEV* diff = SE.getMinusSCEV(StoreOffset, LoadOffset);
-                        outs() << "Differenza: " << *diff << "\n";
-                        if(SE.isKnownNonPositive(diff)){
-                          outs() << "Abbiamo una dipendenza negativa\n";
-                          //se abbiamo una dipendenza negativa, allora non possiamo fare la loop fusion
-                          return false;
-                        }
-                      */  
+                        const SCEVAddRecExpr *StoreAR = dyn_cast<SCEVAddRecExpr>(StoreOffset);
+                        const SCEVAddRecExpr *LoadAR = dyn_cast<SCEVAddRecExpr>(LoadOffset);
 
-                        //dopo aver fallito con il controllo sugli offset a basso livello, utilizziamo la dependence analysis, analizzando le store e load
-                        //con base register uguali.
+                        if(StoreAR && LoadAR){
+                          //se entrambi sono SCEVAddRecExpr, allora possiamo fare il controllo sulla dipendenza negativa
+                          // controlliamo se il passo della store è maggiore del passo della load
+                          const SCEV *StoreStart = StoreAR->getStart();
+                          const SCEV *LoadStart = LoadAR->getStart();
 
-                        if(auto D = DI.depends(ST, LO, true)){
-                          //se la dipendenza è negativa, allora non possiamo fare la loop fusion
-                          unsigned Levels = D->getLevels();
-                          for(unsigned int i = 0; i < Levels; i++){
-                            if(D->isKnownNegative(i)){
-                              outs() << "Abbiamo una dipendenza negativa\n";
-                              //se abbiamo una dipendenza negativa, allora non possiamo fare la loop fusion
-                              return false;
+                          //ora controlliamo gli incrementi
+                          const SCEV *StoreStep = StoreAR->getStepRecurrence(SE);
+                          const SCEV *LoadStep = LoadAR->getStepRecurrence(SE);
+
+                          outs() << "Store start: " << *StoreStart << ", step: " << *StoreStep << "\n";
+                          outs() << "Load start: " << *LoadStart << ", step: " << *LoadStep << "\n";
+
+                          //se gli step sono uguali, allora controlliamo gli start
+                          if(StoreStep == LoadStep){
+                            const SCEV *diffStart = SE.getMinusSCEV(StoreStart, LoadStart);
+
+                            if(const SCEVConstant *DiffConst = dyn_cast<SCEVConstant>(diffStart)){
+                              int64_t diffValue = DiffConst->getAPInt().getSExtValue();
+                              outs() << "Differenza tra gli start: " << diffValue << "\n";
+                              if(diffValue < 0){
+                                //se la differenza è negativa, allora abbiamo una dipendenza negativa
+                                outs() << "Abbiamo una dipendenza negativa tra i due loop\n";
+                                return false; //se abbiamo una dipendenza negativa, allora non possiamo fare la loop fusion
+                              }
                             }
                           }
                         }
@@ -158,10 +161,8 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
           }
         }
       }
-      
     }
   }
-
   return true; //se non ci sono dipendenze negative, allora si può fare la loop fusion
 }
 
@@ -243,7 +244,7 @@ bool sonoAdiacenti(Loop *L1, Loop *L2) {
     }
   }else{
     // se il secondo loop non è Guard allora la exit del primo loop deve corrispondere con il preheader 
-    if(L1Exit == L2->getHeader()){
+    if(L1Exit == L2->getLoopPreheader()){
       //se il secondo loop è normale, allora si controla che il BB di uscita di L1 corrisponda al BB preheader di L2
       outs() << "I due loop sono adiacenti\n";
       return true; 
@@ -259,39 +260,16 @@ bool loopFusion(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PDT, S
     controllo se i loop sono adiacenti
   */
   if(sonoAdiacenti(L1, L2)){
-    //if(cfgEquivalenti(L1, L2, DT, PDT)){
-      // e qui continuiamo con i controlli... alla fine della catena se tutti sono soddisfatti ritorniamo true
-      // mentre al di fuori ritorniamo false
-    //}
-    
+    if(cfgEquivalenti(L1, L2, DT, PDT)){
+      if(sameNumIterations(L1, L2, SE)){
+        if(!analisiDipendenze(L1, L2, DI, SE)){
+          return true;
+        }
+      }
+    }
   }
 
-  /*
-    SECONDO CONTROLLO:
-    controllo se i loop sono equivalenti
-  */
-
-  if(cfgEquivalenti(L1, L2, DT, PDT)){
-    //se i loop sono adiacenti e la cfg è equivalente, allora si può fare la loop fusion
-    //outs() << "I due loop possono essere fusi\n";
-    
-    
-  }
-
-  /*
-    TERZO CONTROLLO:
-    controllo se i loop HANNO lo stesso numero di iterazioni
-  */
-
-  if(sameNumIterations(L1, L2, SE)){
-   
-  }
-
-  if(analisiDipendenze(L1, L2, DI, SE)){
-    //se non ci sono dipendenze tra i due loop, allora si può fare la loop fusion
-    //outs() << "I due loop non hanno dipendenze\n";
-  }
-
+ 
   return false; //se anche solo un controllo non è soddisfatto, non si può effettuare la loop fusion
 }
 
@@ -308,6 +286,97 @@ PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
 
   if(loopFusion(L1, L2, DT, PDT, SE, DI)){
     //si fa la loop fusion
+
+    //modifichiamo gli usi della induction variable del loop 2 con quelli del loop 1
+
+    PHINode *L1IndVar = L1->getCanonicalInductionVariable();
+    errs() << "Induction variable del primo loop: " << *L1IndVar << "\n";
+    PHINode *L2IndVar = L2->getCanonicalInductionVariable();
+    errs() << "Induction variable del secondo loop: " << *L2IndVar << "\n";
+    
+    L2IndVar->replaceAllUsesWith(L1IndVar); //sostituiamo tutti gli usi della variabile di induzione del secondo loop con quella del primo loop
+
+    /*
+      MODIFICA 1:
+      L'header del loop 1 punterà all'exit del loop 2, così da non avere più il loop 2 come figlio del loop 1.
+      In questo modo il loop 2 sarà integrato nel body del loop 1 e non più un figlio del loop 1.
+    */
+
+    BasicBlock *L1Header = L1->getHeader();
+    BasicBlock *L1Exit = L1->getExitBlock();
+    BasicBlock *L2Exit = L2->getExitBlock();
+
+    Instruction* L1HeaderTerm = L1Header->getTerminator(); //prendiamo l'istruzione terminatrice dell'header del loop 1
+
+    if(BranchInst *BI = dyn_cast<BranchInst>(L1HeaderTerm)){
+      if(BI->isConditional()){
+        //se l'istruzione terminale dell'header del loop 1 è una branch condizionale, allora possiamo andare in due possibili basic block
+        if(BI->getSuccessor(0) == L1Exit){
+          //se il primo successore è l'header del loop 1, allora dobbiamo cambiare il secondo successore con l'exit del loop 2
+          BI->setSuccessor(0, L2Exit); //modifichiamo il secondo successore dell'istruzione branch condizionale dell'header del loop 1
+        }else if(BI->getSuccessor(1) == L1Exit){
+          //se il secondo successore è l'header del loop 1, allora dobbiamo cambiare il primo successore con l'exit del loop 2
+          BI->setSuccessor(1, L2Exit); //modifichiamo il primo successore dell'istruzione branch condizionale dell'header del loop 1
+        }
+      }
+    }
+   
+
+    /*
+      MODIFICA 2:
+      Il Body di L1 punterà al Body di L2.
+    */
+
+    //otteniamo il primo basic block del body del loop 2.
+    BasicBlock *L2Header = L2->getHeader();
+    BasicBlock *L2FirstBodyBlock = nullptr;
+    
+    for(BasicBlock *BB : successors(L2Header)){
+      // cerchiamo il primo basic block del body del loop 2, che non sia il latch
+      if(BB != L2Exit){
+        L2FirstBodyBlock = BB;
+        break; // una volta trovato il primo blocco del body del loop 2, usciamo dal ciclo
+      }
+    }
+
+    //otteniamo ora l'ultimo basic block del body del loop 1, che punterà al primo basic block del body del loop 2
+
+    BasicBlock *L1lastBodyBlock = L1->getLoopLatch()->getSinglePredecessor(); //prendiamo il predecessore del latch del loop 1, che è l'ultimo blocco del body del loop 1
+    Instruction *L1lastBodyTerm = L1lastBodyBlock->getTerminator(); //prendiamo l'istruzione terminatrice dell'ultimo blocco del body del loop 1
+
+    if(BranchInst *BI = dyn_cast<BranchInst>(L1lastBodyTerm)){
+      BI->setSuccessor(0, L2FirstBodyBlock);//ora il body di L1 punta al body di L2 e non più al latch di L1
+    }
+
+    /*
+      MODIFICA 3:
+      Il body di L2 punterà al latch di L1.
+    */
+    
+    BasicBlock *L2lastBodyBlock = L2->getLoopLatch()->getSinglePredecessor(); //prendiamo il predecessore del latch del loop 2, che è l'ultimo blocco del body del loop 2
+    Instruction *L2lastBodyTerm = L2lastBodyBlock->getTerminator(); //prendiamo l'istruzione terminatrice dell'ultimo blocco del body del loop 2
+
+    if(BranchInst *BI = dyn_cast<BranchInst>(L2lastBodyTerm)){
+      BI->setSuccessor(0, L1->getLoopLatch()); //ora il body di L2 punta al latch di L1 e non più al latch di L2
+    }
+    
+    /*
+      MODIFICA 4:
+      L'header di L2 invece che puntare al blocco exit, punterà al latch di L2, così da staccare il CFG del loop 2 dal loop 1.
+      Abbiamo difatto già integrato il corpo del loop 2 nel corpo del loop 1, ora dobbiamo staccare il CFG del loop 2 dal loop 1.
+    */
+
+    Instruction *L2HeaderTerm = L2Header->getTerminator(); //prendiamo l'istruzione terminatrice dell'header del loop 2
+
+    if(BranchInst *BI = dyn_cast<BranchInst>(L2HeaderTerm)){
+      if(BI->isConditional()){
+        //se l'istruzione terminale dell'header del loop 2 è una branch condizionale, allora possiamo andare in due possibili basic block
+        BI->setSuccessor(0, L2->getLoopLatch()); //modifichiamo il primo successore dell'istruzione branch condizionale dell'header del loop 2
+        BI->setSuccessor(1, L2->getLoopLatch()); //modifichiamo il secondo successore dell'istruzione branch condizionale dell'header del loop 2
+        //così scolleghiamo il CFG del loop 2 dal loop 1, in quanto ora l'header del loop 2 punterà al latch del loop 2
+      }
+    }
+
   }
 
 
