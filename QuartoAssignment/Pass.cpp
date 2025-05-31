@@ -52,7 +52,7 @@ void visitaLoops(std::vector<Loop*> &Loops, LoopInfo &LI, DominatorTree &DT, Pos
         if(loopFusionPossible(Loops[i], Loops[j], DT, PDT, SE, DI)){
           //se i due loop sono adiacenti, hanno lo stesso numero di iterazioni, sono equivalenti come CFG e non hanno dipendenze negative,
           // allora si può fare la loop fusion
-          errs() << "Loop Fusion possibile tra: " << *Loops[i] << " e " << *Loops[j] << "\n";
+          errs() << "Loop Fusion possibile tra i loop con header: " << *Loops[i]->getHeader() << " e " << *Loops[j]->getHeader() << "\n";
           loopFusion(Loops[i], Loops[j]);
         }
       }
@@ -69,9 +69,8 @@ void visitaLoops(std::vector<Loop*> &Loops, LoopInfo &LI, DominatorTree &DT, Pos
 
 void loopFusion(Loop *L1, Loop *L2){
   PHINode *L1IndVar = L1->getCanonicalInductionVariable();
-  errs() << "Induction variable del primo loop: " << *L1IndVar << "\n";
   PHINode *L2IndVar = L2->getCanonicalInductionVariable();
-  errs() << "Induction variable del secondo loop: " << *L2IndVar << "\n";
+
   
   L2IndVar->replaceAllUsesWith(L1IndVar); //sostituiamo tutti gli usi della variabile di induzione del secondo loop con quella del primo loop
 
@@ -268,6 +267,9 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
                                 outs() << "Abbiamo una dipendenza negativa tra i due loop\n";
                                 return false; //se abbiamo una dipendenza negativa, allora non possiamo fare la loop fusion
                               }
+                              else{
+                                outs() << "Non abbiamo una dipendenza negativa tra i due loop\n";
+                              }
                             }
                           }
                         }
@@ -350,7 +352,7 @@ bool cfgEquivalenti(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PD
 bool sonoAdiacenti(Loop *L1, Loop *L2) {
   // facciamo in questa funzione il controllo sull'adiacenza dei loop. se sono adiacenti, allora ritorna true
   // nella documentazione sono spiegati i controlli che ora effettueremo:
-
+  outs() << "visito i loop con header: " << *L1->getHeader() << " e " << *L2->getHeader() << "\n";
   BasicBlock *L1Exit = L1->getExitBlock();//ritorna null se ci sono più exit blocks.
 
   if(L2->isGuarded()){
@@ -383,7 +385,7 @@ bool loopFusionPossible(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree
   if(sonoAdiacenti(L1, L2)){
     if(cfgEquivalenti(L1, L2, DT, PDT)){
       if(sameNumIterations(L1, L2, SE)){
-        if(!analisiDipendenze(L1, L2, DI, SE)){
+        if(analisiDipendenze(L1, L2, DI, SE)){
           return true;
         }
       }
