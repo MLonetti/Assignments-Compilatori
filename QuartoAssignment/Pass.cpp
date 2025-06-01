@@ -54,6 +54,7 @@ void visitaLoops(std::vector<Loop*> &Loops, LoopInfo &LI, DominatorTree &DT, Pos
           // allora si può fare la loop fusion
           errs() << "Loop Fusion possibile tra i loop con header: " << *Loops[i]->getHeader() << " e " << *Loops[j]->getHeader() << "\n";
           loopFusion(Loops[i], Loops[j]);
+          return; 
         }
       }
     }
