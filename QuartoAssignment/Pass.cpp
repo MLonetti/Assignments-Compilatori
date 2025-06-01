@@ -1,9 +1,8 @@
 //=============================================================================
 /*
 
-  Quarto Assignment:
-    - ristrutturare il codice seguendo gl appunti su ipad
-      - implementa controlli su: adiacenza loop e CFG ...
+  Quarto Assignment - Loop Fusion - Manuel Vincenzo Lonetti
+    
 
 */
 //=============================================================================
@@ -32,12 +31,6 @@ namespace {
 struct LoopFusionPass0: PassInfoMixin<LoopFusionPass0> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
-
-/*
-  definiamo la funzione loopFusion dove facciamo il controllo sulla coppia di loop: se tutti i controlli ritornano true, allora la funzione ritorna treu e si
-  può fare appunto la loop fusion.
-
-*/ 
 
 /*
   si visitano prima tutti i loop del livello superiore,e si controlla per tutte le coppie se è posibile la loop fusion
@@ -161,29 +154,6 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
   // controlla se ci sono dipendenze negative tra i due loop
   // se ci sono dipendenze negative allora non si può fare la loop fusion
 
-  /*
-    Per comprendere questo controllo, dobbiamo prima comprendere come sono rappresentate le store in LLVM
-    esempio:
-
-    %1 = getelementptr inbounds [10 x i32], ptr %array, i64 0, i64 %offset
-    %2 = store i32 valore, i32* %1, align 4
-
-    Quando si accede alla store:
-      il primo operando (valore) è il valore che si sta caricando nell'indirizzo in memoria
-      il secondo operando è l'indirizzo in memoria dove si sta caricando il valore
-
-      in questo caso, prendiamo l'operando %1, lo castiamo ad instruction e qui vediamo due operandi:
-        - il primo operando è il base register dell'array
-        - l'ultimo operando è l'offset
-
-    Quindi, questo è il metodo in cui accederemo alle store, prenderemo base register ed offset per vedere se poi avremo delle dipendenze negative
-    nelle load che accederanno allo stesso indirizzo in memoria.
-
-    Per le dipendenze negative: se l'offset della load è maggiore di quello della store, allora avremo una dipendenza negativa
-
-    
-  */
-
   for(BasicBlock *BB : L1->getBlocks()){
     for(Instruction &I : *BB){
       //vediamo se l'istruzione è una store
@@ -197,7 +167,6 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
         outs() << "istruzione store: " << ST << "\n";
         outs() << "operando destinazione: " << *DestOperand << "\n";
 
-
         if(GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(DestOperand)){
           //se l'istruzione è una getelementptr, allora possiamo fare il cast ad Instruction
           //e prelevare gli operandi che ci interessano
@@ -209,10 +178,8 @@ bool analisiDipendenze(Loop *L1, Loop *L2, DependenceInfo &DI, ScalarEvolution &
             outs() << "Base register: " << *BaseReg << "\n";
             outs() << "Offset: " << *Offset << "\n";
           
-        
-            //iteriamo tutte le load del secondo loop, poi controlliamo se il base register è uguale, altrimenti già non ci sarà dipendenza negativa
-            //se base register è uguale, ci concentreremo sull'offset, forse sarà da sfruttare la scalar evolution
-            // in quanto i registri di offset saranno sicuramente diversi, per l'SSA.
+            //iteriamo tutte le load del secondo loop, poi controlliamo se il base register è uguale, altrimenti non ci sarà dipendenza negativa
+            //se base register è uguale, ci concentreremo sull'offset.
 
             for(BasicBlock *BB2 : L2->getBlocks()){
               for(Instruction &I2 : *BB2){
@@ -292,7 +259,6 @@ bool sameNumIterations(Loop *L1, Loop *L2, ScalarEvolution &SE){
   // controlla se i due loop hanno lo stesso numero di iterazioni
   // si può fare in questo modo: si calcola il numero di iterazioni del primo loop e si confronta con il secondo loop
 
-  // se sono uguali allora ritorna true, altrimenti false
   unsigned L1Num = SE.getSmallConstantTripCount(L1);
   unsigned L2Num = SE.getSmallConstantTripCount(L2);
 
@@ -313,7 +279,6 @@ bool sameNumIterations(Loop *L1, Loop *L2, ScalarEvolution &SE){
 }
 
 bool cfgEquivalenti(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PDT){
-  // guarda README.md per i controlli effettuati in tale funzione
 
   if(L1->isGuarded() && L2->isGuarded()){
     outs () << "Entrambi i loop sono Guard\n";
@@ -351,8 +316,7 @@ bool cfgEquivalenti(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PD
 }
 
 bool sonoAdiacenti(Loop *L1, Loop *L2) {
-  // facciamo in questa funzione il controllo sull'adiacenza dei loop. se sono adiacenti, allora ritorna true
-  // nella documentazione sono spiegati i controlli che ora effettueremo:
+  
   outs() << "visito i loop con header: " << *L1->getHeader() << " e " << *L2->getHeader() << "\n";
   BasicBlock *L1Exit = L1->getExitBlock();//ritorna null se ci sono più exit blocks.
 
@@ -360,8 +324,7 @@ bool sonoAdiacenti(Loop *L1, Loop *L2) {
     //si controlla se il BB di uscita di L1, corrisponde al BB Guard di L2.
     if(L1Exit == L2->getLoopGuardBranch() -> getParent()->getPrevNode()){ // si prende il BB predecessore della guardia, in quanto nei Guarded 
                                                                          // prima della guardia c'è sempre un blocco.
-      // getLoopGuardBranch ritorna l'istruzone branch del Guard, in cui si analizza se entrare nel loop o andare verso l'uscita
-      // da questa istruzione branch risaliamo al basic block
+      
 
       outs() << "I due loop sono adiacenti\n";
       return true; // dunque se il secondo loop è guard e si verifica questa condizione, allora sono adiacenti
@@ -379,10 +342,7 @@ bool sonoAdiacenti(Loop *L1, Loop *L2) {
 }
 
 bool loopFusionPossible(Loop *L1, Loop *L2, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, DependenceInfo &DI){
-  /*
-    PRIMO CONTROLLO:
-    controllo se i loop sono adiacenti
-  */
+  // controlli per vedere se è possibile effettuare la loop fusion tra i due loop L1 e L2
   if(sonoAdiacenti(L1, L2)){
     if(cfgEquivalenti(L1, L2, DT, PDT)){
       if(sameNumIterations(L1, L2, SE)){
@@ -408,27 +368,6 @@ PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
   std::vector<Loop*> Loops = LI.getTopLevelLoops();
 
   visitaLoops(Loops, LI, DT, PDT, SE, DI);
-
-  /*for (int i = 0; i < Loops.size(); i++){
-    errs() << "Loop " << i << ": " << *Loops[i] << "\n";
-
-    // dal loop corrente, prendiamo il vettore dei loop figli
-    std::vector<Loop*> SubLoops = Loops[i]->getSubLoops();
-    for(int j = 0; j < SubLoops.size(); j++){
-      errs() << "subLoop " << j << ": " << *SubLoops[j] << "\n";
-    }
-  }
-  
-
-  if(loopFusionPossible(L1, L2, DT, PDT, SE, DI)){
-    //si fa la loop fusion
-
-    //modifichiamo gli usi della induction variable del loop 2 con quelli del loop 1
-
-    loopFusion(L1, L2);
-
-  }
-  */
 
   return PreservedAnalyses::all();
 }
